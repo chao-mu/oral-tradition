@@ -19,7 +19,7 @@ CHANNELS = 1
 SAMPLE_RATE = 44100
 
 def main():
-    prefix = sys.argv[1]
+    base = sys.argv[1]
 
     rec = Recorder()
 
@@ -33,7 +33,7 @@ def main():
 
     is_running = True
 
-    file_manager = FileManager(prefix)
+    file_manager = FileManager(base)
 
     play_idx = 0
     while is_running:
@@ -68,12 +68,13 @@ def play_audio(path):
 
 class FileManager:
 
-    def __init__(self, prefix):
-        self.paths = sorted(glob.glob("{}*.wav".format(prefix)))
+    def __init__(self, base):
+        self.paths = sorted(glob.glob("{}/*.wav".format(base)))
+        self.base = base
         self.idx = 0
 
     def new_file(self):
-        path = "{}-{}.wav".format(prefix, str(len(self.path) + 1).zfill(5))
+        path = "{}/{}.wav".format(self.base, str(len(self.paths) + 1).zfill(5))
         self.paths.append(path)
 
         return path
