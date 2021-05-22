@@ -25,8 +25,10 @@ def main():
 
     pygame.init()
 
-    pygame.display.set_caption('oral traadition')
+    clock = pygame.time.Clock()
+
     window_surface = pygame.display.set_mode((800, 600))
+    pygame.display.set_caption('oral traadition')
 
     background = pygame.Surface((800, 600))
     background.fill(pygame.Color('#000000'))
@@ -60,6 +62,7 @@ def main():
         window_surface.blit(background, (0, 0))
 
         pygame.display.update()
+        clock.tick(30)
 
 def play_audio(path):
     sd.stop()
