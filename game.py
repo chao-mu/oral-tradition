@@ -38,7 +38,7 @@ def main():
 
     lines = load_file(path)
     game = Game(lines)
-    state = Menu(game, lines)
+    state = Menu(game)
 
     play_idx = 0
     while is_running:
@@ -76,16 +76,14 @@ class Game:
 
 class State:
 
+    def __init__(self, game):
+        self.game = game
+        self.next_state = self
+
     def btn_a(self):
         pass
 
     def btn_b(self):
-        pass
-
-    def btn_up(self):
-        pass
-
-    def btn_down(self):
         pass
 
     def btn_left(self):
@@ -94,25 +92,41 @@ class State:
     def btn_right(self):
         pass
 
-class Menu(State):
-
-    def __init__(self, game, lines):
-        self.game = game
-        self.lines = lines
-        self.lines.goto(0)
-        self.next_state = self
-
-    def btn_a(self):
-        self.next_state = Playing(self.game)
-
-    def btn_b(self):
-        pass
-
     def btn_up(self):
-        self.lines.back()
+        self.back_line()
+        self.refresh()
 
     def btn_down(self):
+        self.next_line()
+        self.refresh()
+
+    def next_line(self):
         self.lines.next()
+        self.current_line.goto(0)
+
+    def back_line(self):
+        self.lines.back()
+        self.current_line.goto(0)
+
+    def refresh(self):
+        pass
+
+    @property
+    def lines(self):
+        return self.game.lines
+
+    @property
+    def current_line(self):
+        return self.game.lines.current
+
+    @property
+    def current_word(self):
+        return self.current_line.current
+
+class Menu(State):
+
+    def btn_right(self):
+        self.next_state = GuessNext(self.game)
 
     def tick(self):
         screen.blit(background, (0, 0))
@@ -120,17 +134,65 @@ class Menu(State):
         text_rect = Rect((20, 20), (800, 800))
         draw_text(screen, self.lines.current.join(), GRAY, text_rect, font)
 
-class Playing(State):
+class Initialisms(State):
+
+    def btn_left(self):
+        self.next_state = GuessNext(self.game)
+
+    def btn_right(self):
+        self.next_state = Blank(self.game)
+
+    def tick(self):
+        screen.blit(background, (0, 0))
+
+        text_rect = Rect((20, 20), (800, 800))
+        draw_text(screen, self.initials, RED, text_rect, font)
+
+    @property
+    def initials(self):
+        return " ".join([word[0] for word in self.current_line])
+
+class Blank(State):
+
+    def __init__(self, game, last_shown=0):
+        super().__init__(game)
+
+        self.last_shown = last_shown
+
+    def btn_left(self):
+        self.next_state = Initialisms(self.game)
+
+    def btn_a(self):
+        self.last_shown = min(self.last_shown + 1, len(self.current_line))
+
+    def btn_b(self):
+        self.last_shown = 0
+
+    def refresh(self):
+        self.last_shown = 0
+
+    def tick(self):
+        screen.blit(background, (0, 0))
+
+        initials = [word[0] for word in self.current_line]
+        initials = initials[0:self.last_shown]
+        initials = " ".join(initials)
+
+        text_rect = Rect((20, 20), (800, 800))
+        draw_text(screen, initials, RED, text_rect, font)
+
+class GuessNext(State):
 
     def __init__(self, game):
+        super().__init__(game)
+
         self.option_a = None
         self.option_b = None
-        self.game = game
         self.winning = None
-        self.next_state = self
-        self.game.lines.current.goto(0)
 
-        self._set_options()
+        self.current_line.goto(0)
+        self.refresh()
+
 
     def btn_a(self):
         self.guess(self.option_a)
@@ -138,15 +200,16 @@ class Playing(State):
     def btn_b(self):
         self.guess(self.option_b)
 
-    def btn_up(self):
-        self.back_line()
-        self._set_options()
+    def btn_left(self):
+        if self.current_line.idx > 0:
+            self.next_state = GuessNext(self.game)
+        else:
+            self.next_state = Menu(self.game)
 
-    def btn_down(self):
-        self.next_line()
-        self._set_options()
+    def btn_right(self):
+        self.next_state = Initialisms(self.game)
 
-    def _set_options(self):
+    def refresh(self):
         options = [random.choice(self.game.word_pool), self.current_line.peek_next]
         random.shuffle(options)
         self.option_a, self.option_b = options
@@ -161,10 +224,7 @@ class Playing(State):
         else:
             self.winning = False
 
-        self._set_options()
-
-    def next_state(self):
-        return self
+        self.refresh()
 
     def tick(self):
         screen.blit(background, (0, 0))
@@ -181,22 +241,6 @@ class Playing(State):
         if self.winning is not None:
             status_pos[0] += 20
             render_text(":-)" if self.winning else ":-(", PINK, status_pos)
-
-    def next_line(self):
-        self.game.lines.next()
-        self.current_line.goto(0)
-
-    def back_line(self):
-        self.game.lines.back()
-        self.current_line.goto(0)
-
-    @property
-    def current_line(self):
-        return self.game.lines.current
-
-    @property
-    def current_word(self):
-        return self.current_line.current
 
 def render_text(text, color, pos):
     surface = font.render(text, True, color)
